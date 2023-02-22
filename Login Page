@@ -1,0 +1,190 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Login Demo',
+      initialRoute: '/',
+      routes: {
+        '/': (context) => LoginScreen(),
+        '/home': (context) => HomeScreen(),
+      },
+    );
+  }
+}
+
+class LoginScreen extends StatefulWidget {
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  AuthService authService = AuthService();
+
+  void _login() {
+    if (_formKey.currentState!.validate()) {
+      authService.login(_emailController.text, _passwordController.text).then((value) {
+        // Navigate to the home screen
+        Navigator.pushReplacementNamed(context, '/home');
+      }).catchError((error) {
+        // Show an error message
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Login failed'),
+        ));
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Login'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _emailController,
+                decoration: InputDecoration(
+                  hintText: 'Email',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  return null;
+                },
+              ),
+              SizedBox(height: 16.0),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: 'Password',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your password';
+                  }
+                  return null;
+                },
+              ),
+              SizedBox(height: 16.0),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _login,
+                  child: Text('Login'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  AuthService authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    authService.isLoggedIn().then((isLoggedIn) {
+      if (!isLoggedIn) {
+        // Navigate to the login screen
+        Navigator.pushReplacementNamed(context, '/');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Home'),
+      ),
+      body: Center(
+        child: Text('Welcome'),
+      ),
+    );
+  }
+}
+
+class AuthService {
+  static const String baseUrl = "https://reqres.in/api";
+  static const String loginEndpoint = "/login";
+
+  Future<LoginResponse> login(String email, String password) async {
+    final response = await http.post(Uri.parse(baseUrl + loginEndpoint),
+        headers: <String, String>{'Content-Type': 'application/json'},
+        body: jsonEncode(<String, String>{
+
+
+
+Raviranjan patel
+continue
+kotlin
+Copy code
+        'email': email,
+        'password': password,
+      }));
+
+if (response.statusCode == 200) {
+  // If the server did return a 200 OK response, parse the JSON data
+  final data = jsonDecode(response.body);
+  final token = data['token'];
+
+  // Save the token in shared preferences
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('token', token);
+
+  return LoginResponse.success();
+} else {
+  // If the server did not return a 200 OK response, throw an error
+  throw Exception('Failed to login');
+}
+}
+
+Future<bool> isLoggedIn() async {
+final prefs = await SharedPreferences.getInstance();
+final token = prefs.getString('token');
+return token != null;
+}
+}
+
+class LoginResponse {
+bool success;
+String error;
+
+LoginResponse({required this.success, required this.error});
+
+factory LoginResponse.success() {
+return LoginResponse(success: true, error: '');
+}
+
+factory LoginResponse.failure(String error) {
+return LoginResponse(success: false, error: error);
+}
+}
